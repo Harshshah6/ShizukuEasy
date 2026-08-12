@@ -4,14 +4,21 @@
 
 A high-level, developer-friendly wrapper around the [Shizuku](https://github.com/RikkaApps/Shizuku) API for Android. ShizukuEasy handles binder connections, permission management, and state tracking so you can focus on building features.
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.harshshah6.shizukueasy/core)](https://central.sonatype.com/artifact/com.harshshah6.shizukueasy/core)
+[![Maven Central](https://img.shields.io/maven-central/v/com.harshbits.shizukueasy/core)](https://central.sonatype.com/artifact/com.harshbits.shizukueasy/core)
 [![License](https://img.shields.io/github/license/Harshshah6/ShizukuEasy)](LICENSE)
 
 ## Installation
 
+Add the Sonatype Central Portal snapshot repository and dependency:
+
 ```kotlin
+repositories {
+    mavenCentral()
+    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
+}
+
 dependencies {
-    implementation("com.harshshah6.shizukueasy:core:0.1.0")
+    implementation("com.harshbits.shizukueasy:core:0.1.0-SNAPSHOT")
 }
 ```
 
@@ -233,16 +240,30 @@ ShizukuEasy.addStatusListener(status -> {
 
 ## Maven Central
 
-ShizukuEasy is published to Maven Central:
+Development builds are published as `0.1.0-SNAPSHOT` to Sonatype Central Portal's snapshot repository:
 
 ```kotlin
 // Gradle Kotlin DSL
-implementation("com.harshshah6.shizukueasy:core:0.1.0")
+repositories {
+    mavenCentral()
+    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
+}
+
+dependencies {
+    implementation("com.harshbits.shizukueasy:core:0.1.0-SNAPSHOT")
+}
 ```
 
 ```groovy
 // Gradle Groovy DSL
-implementation 'com.harshshah6.shizukueasy:core:0.1.0'
+repositories {
+    mavenCentral()
+    maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
+}
+
+dependencies {
+    implementation 'com.harshbits.shizukueasy:core:0.1.0-SNAPSHOT'
+}
 ```
 
 ## Relationship to the Shizuku API

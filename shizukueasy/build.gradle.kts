@@ -52,7 +52,7 @@ dependencies {
 
 mavenPublishing {
     coordinates(
-        groupId = "com.harshshah6.shizukueasy",
+        groupId = "com.harshbits.shizukueasy",
         artifactId = "core",
         version = providers.gradleProperty("VERSION_NAME").getOrElse("0.1.0-SNAPSHOT")
     )

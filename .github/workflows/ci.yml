@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -36,9 +36,6 @@ jobs:
 
       - name: Verify Maven publication
         run: ./gradlew :core:publishToMavenLocal
-        env:
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Upload test results
         if: always()
@@ -46,3 +43,4 @@ jobs:
         with:
           name: test-results
           path: shizukueasy/build/reports/tests/
+
