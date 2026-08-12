@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -39,7 +42,7 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || secrets.SIGNING_PASSWORD }}
 
       - name: Determine release version
         id: version
@@ -55,6 +58,6 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD || secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_VERSION_NAME: ${{ steps.version.outputs.RELEASE_VERSION }}
 

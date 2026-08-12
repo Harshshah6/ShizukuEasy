@@ -50,6 +50,18 @@ dependencies {
     testImplementation(libs.robolectric)
 }
 
+val keyIdProp = providers.gradleProperty("signingInMemoryKeyId").orNull
+    ?: providers.gradleProperty("signing.keyId").orNull
+
+if (!keyIdProp.isNullOrBlank()) {
+    val cleanKeyId = keyIdProp.removePrefix("0x").removePrefix("0X")
+    if (cleanKeyId.length > 8) {
+        val shortKeyId = cleanKeyId.takeLast(8)
+        extra["signingInMemoryKeyId"] = shortKeyId
+        extra["signing.keyId"] = shortKeyId
+    }
+}
+
 mavenPublishing {
     coordinates(
         groupId = "com.harshbits.shizukueasy",

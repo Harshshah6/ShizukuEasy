@@ -10,6 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -29,6 +32,7 @@ jobs:
           if [ -z "${MAVEN_CENTRAL_PASSWORD}" ]; then missing_secrets+=("MAVEN_CENTRAL_PASSWORD"); fi
           if [ -z "${SIGNING_KEY}" ]; then missing_secrets+=("SIGNING_KEY"); fi
           if [ -z "${SIGNING_PASSWORD}" ]; then missing_secrets+=("SIGNING_PASSWORD"); fi
+          if [ -z "${SIGNING_KEY_ID}" ]; then missing_secrets+=("SIGNING_KEY_ID"); fi
 
           if [ ${#missing_secrets[@]} -ne 0 ]; then
             echo "::error::Missing required repository secret(s): ${missing_secrets[*]}"
@@ -38,14 +42,15 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
 
       - name: Publish Snapshot to Maven Central
-        run: ./gradlew :core:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+        run: ./gradlew publishToMavenCentral --no-configuration-cache
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD || secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_VERSION_NAME: 0.1.0-SNAPSHOT
