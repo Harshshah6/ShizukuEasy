@@ -7,7 +7,7 @@ package com.harshshah6.shizukueasy
  * full system access, while [ADB] (UID 2000, shell) is subject to shell-level
  * SELinux and permission restrictions.
  */
-enum class ShizukuBackend {
+public enum class ShizukuBackend {
     /** Backend has not been determined (Shizuku not connected). */
     UNKNOWN,
 
@@ -17,11 +17,8 @@ enum class ShizukuBackend {
     /** Shizuku is running via root (UID 0). */
     ROOT;
 
-    companion object {
-        /** UID for the Android shell user. */
+    public companion object {
         internal const val UID_SHELL = 2000
-
-        /** UID for the root user. */
         internal const val UID_ROOT = 0
 
         /**
@@ -29,7 +26,7 @@ enum class ShizukuBackend {
          * @param uid The UID returned by `Shizuku.getUid()`.
          */
         @JvmStatic
-        fun fromUid(uid: Int): ShizukuBackend = when (uid) {
+        public fun fromUid(uid: Int): ShizukuBackend = when (uid) {
             UID_ROOT -> ROOT
             UID_SHELL -> ADB
             else -> UNKNOWN

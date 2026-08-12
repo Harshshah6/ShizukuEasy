@@ -2,6 +2,7 @@ package com.harshshah6.shizukueasy.internal
 
 import android.content.pm.PackageManager
 import com.harshshah6.shizukueasy.OnPermissionResultListener
+import com.harshshah6.shizukueasy.PermissionState
 import rikka.shizuku.Shizuku
 
 /**
@@ -11,10 +12,10 @@ import rikka.shizuku.Shizuku
  * pending [OnPermissionResultListener] callbacks.
  */
 internal class PermissionManager(
-    private val onPermissionChanged: (Boolean) -> Unit
+    private val onPermissionStateChanged: (PermissionState) -> Unit
 ) {
     private companion object {
-        const val REQUEST_CODE = 51738 // arbitrary unique code
+        const val REQUEST_CODE = 51738
     }
 
     private val pendingCallbacks = mutableListOf<OnPermissionResultListener>()
@@ -23,9 +24,18 @@ internal class PermissionManager(
         Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
             if (requestCode == REQUEST_CODE) {
                 val granted = grantResult == PackageManager.PERMISSION_GRANTED
-                onPermissionChanged(granted)
+                val state = if (granted) PermissionState.GRANTED else evaluateDeniedState()
+                onPermissionStateChanged(state)
                 dispatchPendingCallbacks(granted)
             }
+        }
+
+    /** The current permission state. */
+    val permissionState: PermissionState
+        get() = when {
+            isGranted -> PermissionState.GRANTED
+            shouldShowRationale -> PermissionState.DENIED_FOREVER
+            else -> PermissionState.UNKNOWN
         }
 
     /** Whether the Shizuku permission is currently granted. */
@@ -63,13 +73,11 @@ internal class PermissionManager(
      * If permission is already granted, the callback fires immediately.
      * Otherwise, the Shizuku permission dialog is shown and the callback
      * fires when the user responds.
-     *
-     * @param callback Receives the result of the permission request.
      */
     fun requestPermission(callback: OnPermissionResultListener?) {
         if (isGranted) {
             callback?.onPermissionResult(true)
-            onPermissionChanged(true)
+            onPermissionStateChanged(PermissionState.GRANTED)
             return
         }
 
@@ -87,6 +95,10 @@ internal class PermissionManager(
                 pendingCallbacks.remove(callback)
             }
         }
+    }
+
+    private fun evaluateDeniedState(): PermissionState {
+        return if (shouldShowRationale) PermissionState.DENIED_FOREVER else PermissionState.DENIED
     }
 
     private fun dispatchPendingCallbacks(granted: Boolean) {

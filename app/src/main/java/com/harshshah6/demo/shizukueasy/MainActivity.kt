@@ -9,32 +9,34 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.harshshah6.shizukueasy.OnStateChangeListener
+import com.harshshah6.shizukueasy.OnStatusChangeListener
 import com.harshshah6.shizukueasy.ShizukuEasy
-import com.harshshah6.shizukueasy.ShizukuState
-import rikka.shizuku.Shizuku
+import com.harshshah6.shizukueasy.ShizukuStatus
 
 /**
- * Demo activity showcasing ShizukuEasy usage.
+ * Demo activity showcasing the ShizukuEasy high-level API.
  *
- * Demonstrates initialization, state observation, permission requesting,
- * and running a simple Shizuku operation.
+ * Demonstrates:
+ * - Initialization and status observation
+ * - Permission requesting
+ * - High-level package capability
+ * - Clean error handling with ShizukuResult
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var textState: TextView
-    private lateinit var textAvailable: TextView
-    private lateinit var textPermission: TextView
+    private lateinit var textConnectionState: TextView
+    private lateinit var textPermissionState: TextView
     private lateinit var textBackend: TextView
     private lateinit var textServerVersion: TextView
     private lateinit var textReady: TextView
     private lateinit var btnRequestPermission: MaterialButton
-    private lateinit var btnRunTest: MaterialButton
+    private lateinit var btnListPackages: MaterialButton
+    private lateinit var btnForceStop: MaterialButton
     private lateinit var cardResult: MaterialCardView
     private lateinit var textResult: TextView
 
-    private val stateListener = OnStateChangeListener { newState ->
-        runOnUiThread { updateUi(newState) }
+    private val statusListener = OnStatusChangeListener { newStatus ->
+        runOnUiThread { updateUi(newStatus) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,73 +52,104 @@ class MainActivity : AppCompatActivity() {
 
         bindViews()
 
-        // Initialize ShizukuEasy
+        // Initialize ShizukuEasy — one call, that's it
         ShizukuEasy.init(this)
-        ShizukuEasy.addStateChangeListener(stateListener)
+        ShizukuEasy.addStatusListener(statusListener)
 
         btnRequestPermission.setOnClickListener { onRequestPermissionClicked() }
-        btnRunTest.setOnClickListener { onRunTestClicked() }
+        btnListPackages.setOnClickListener { onListPackagesClicked() }
+        btnForceStop.setOnClickListener { onForceStopClicked() }
 
-        // Show initial state
-        updateUi(ShizukuEasy.state)
+        // React to readiness
+        ShizukuEasy.onReady(Runnable {
+            runOnUiThread {
+                showResult("Shizuku is ready! Backend: ${ShizukuEasy.backend.name}")
+            }
+        })
+
+        updateUi(ShizukuEasy.status)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        ShizukuEasy.removeStateChangeListener(stateListener)
+        ShizukuEasy.removeStatusListener(statusListener)
         ShizukuEasy.destroy()
     }
 
     private fun bindViews() {
-        textState = findViewById(R.id.text_state)
-        textAvailable = findViewById(R.id.text_available)
-        textPermission = findViewById(R.id.text_permission)
+        textConnectionState = findViewById(R.id.text_connection_state)
+        textPermissionState = findViewById(R.id.text_permission_state)
         textBackend = findViewById(R.id.text_backend)
         textServerVersion = findViewById(R.id.text_server_version)
         textReady = findViewById(R.id.text_ready)
         btnRequestPermission = findViewById(R.id.btn_request_permission)
-        btnRunTest = findViewById(R.id.btn_run_test)
+        btnListPackages = findViewById(R.id.btn_list_packages)
+        btnForceStop = findViewById(R.id.btn_force_stop)
         cardResult = findViewById(R.id.card_result)
         textResult = findViewById(R.id.text_result)
     }
 
-    private fun updateUi(state: ShizukuState) {
-        textState.text = state.name
-        textAvailable.text = yesNo(ShizukuEasy.available)
-        textPermission.text = yesNo(ShizukuEasy.permissionGranted)
-        textBackend.text = ShizukuEasy.backend.name
-        textReady.text = yesNo(ShizukuEasy.ready)
+    private fun updateUi(status: ShizukuStatus) {
+        textConnectionState.text = status.connection.name
+        textPermissionState.text = status.permission.name
+        textBackend.text = status.backend.name
 
         val version = ShizukuEasy.serverVersion
-        textServerVersion.text = if (version >= 0) version.toString() else getString(R.string.value_unknown)
+        textServerVersion.text = if (version >= 0) version.toString()
+            else getString(R.string.value_unknown)
 
-        btnRequestPermission.isEnabled = ShizukuEasy.available && !ShizukuEasy.permissionGranted
-        btnRunTest.isEnabled = ShizukuEasy.ready
+        textReady.text = yesNo(status.isReady)
+
+        btnRequestPermission.isEnabled = status.isAvailable && !status.isAuthorized
+        btnListPackages.isEnabled = status.isReady
+        btnForceStop.isEnabled = status.isReady
     }
 
     private fun onRequestPermissionClicked() {
-        if (ShizukuEasy.permissionDeniedForever) {
-            showResult(getString(R.string.msg_permission_denied_forever))
-            return
-        }
-
         ShizukuEasy.requestPermission { granted ->
             runOnUiThread {
-                updateUi(ShizukuEasy.state)
+                updateUi(ShizukuEasy.status)
                 showResult(if (granted) "Permission granted!" else "Permission denied.")
             }
         }
     }
 
-    private fun onRunTestClicked() {
-        try {
-            val version = Shizuku.getVersion()
-            val uid = Shizuku.getUid()
-            val backend = ShizukuEasy.backend.name
-            showResult(getString(R.string.msg_test_success, version, uid, backend))
-        } catch (e: Exception) {
-            showResult(getString(R.string.msg_test_error, e.message ?: e.javaClass.simpleName))
-        }
+    /**
+     * Demonstrates the high-level package capability.
+     * No IPackageManager, no binder, no SystemServiceHelper.
+     */
+    private fun onListPackagesClicked() {
+        ShizukuEasy.packages.getInstalled()
+            .onSuccess { packages ->
+                val summary = buildString {
+                    appendLine("${packages.size} packages installed")
+                    appendLine()
+                    packages.take(10).forEach { pkg ->
+                        appendLine("• $pkg")
+                    }
+                    if (packages.size > 10) {
+                        appendLine("… and ${packages.size - 10} more")
+                    }
+                }
+                runOnUiThread { showResult(summary) }
+            }
+            .onFailure { error ->
+                runOnUiThread { showResult("Error: ${error.message}") }
+            }
+    }
+
+    /**
+     * Demonstrates the activity capability — force stop the demo's own package.
+     */
+    private fun onForceStopClicked() {
+        val target = "com.android.calculator2" // safe demo target
+        ShizukuEasy.activities.forceStop(target)
+            .onSuccess {
+                runOnUiThread { showResult("Force-stopped: $target") }
+            }
+            .onFailure { error ->
+                runOnUiThread { showResult("Error: ${error.message}") }
+            }
     }
 
     private fun showResult(message: String) {

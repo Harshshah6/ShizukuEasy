@@ -1,20 +1,16 @@
 <resources>
     <string name="app_name">ShizukuEasy Demo</string>
-    <string name="title_shizuku_state">Shizuku State</string>
-    <string name="label_state">State</string>
-    <string name="label_available">Available</string>
+    <string name="title_shizuku_status">Shizuku Status</string>
+    <string name="label_connection">Connection</string>
     <string name="label_permission">Permission</string>
     <string name="label_backend">Backend</string>
     <string name="label_server_version">Server Version</string>
     <string name="label_ready">Ready</string>
     <string name="btn_request_permission">Request Permission</string>
-    <string name="btn_run_test">Run Test Operation</string>
+    <string name="btn_list_packages">List Installed Packages</string>
+    <string name="btn_force_stop">Force Stop Calculator</string>
     <string name="label_result">Result</string>
     <string name="value_unknown">—</string>
     <string name="value_yes">Yes</string>
     <string name="value_no">No</string>
-    <string name="msg_not_initialized">Not initialized</string>
-    <string name="msg_test_success">Shizuku version: %1$d\nUID: %2$d (%3$s)</string>
-    <string name="msg_test_error">Error: %s</string>
-    <string name="msg_permission_denied_forever">Permission permanently denied. Grant it from the Shizuku app.</string>
 </resources>

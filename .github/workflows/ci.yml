@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run library unit tests
+        run: ./gradlew :core:test
+
+      - name: Lint library
+        run: ./gradlew :core:lint
+
+      - name: Build library
+        run: ./gradlew :core:assembleRelease
+
+      - name: Build demo app
+        run: ./gradlew :app:assembleDebug
+
+      - name: Verify Maven publication
+        run: ./gradlew :core:publishToMavenLocal
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: shizukueasy/build/reports/tests/

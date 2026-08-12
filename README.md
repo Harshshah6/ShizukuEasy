@@ -1,206 +1,283 @@
 # ShizukuEasy
 
-A high-level, developer-friendly wrapper around the [Shizuku](https://github.com/RikkaApps/Shizuku) API for Android.
+> **Shizuku without the boilerplate.**
 
-ShizukuEasy removes the boilerplate of Shizuku setup — binder connections, permission handling, lifecycle management, and backend detection — so you can focus on using Shizuku's capabilities.
+A high-level, developer-friendly wrapper around the [Shizuku](https://github.com/RikkaApps/Shizuku) API for Android. ShizukuEasy handles binder connections, permission management, and state tracking so you can focus on building features.
 
-## Quick Start
-
-### Kotlin
-
-```kotlin
-class MainActivity : AppCompatActivity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        ShizukuEasy.init(this)
-
-        if (ShizukuEasy.ready) {
-            // Shizuku is connected and permitted — use it!
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        ShizukuEasy.destroy()
-    }
-}
-```
-
-### Java
-
-```java
-public class MainActivity extends AppCompatActivity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        ShizukuEasy.init(this);
-
-        if (ShizukuEasy.isReady()) {
-            // Shizuku is connected and permitted — use it!
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        ShizukuEasy.destroy();
-    }
-}
-```
+[![Maven Central](https://img.shields.io/maven-central/v/com.harshshah6.shizukueasy/core)](https://central.sonatype.com/artifact/com.harshshah6.shizukueasy/core)
+[![License](https://img.shields.io/github/license/Harshshah6/ShizukuEasy)](LICENSE)
 
 ## Installation
 
-Add the dependency to your module's `build.gradle.kts`:
-
 ```kotlin
 dependencies {
-    implementation("com.harshshah6:shizukueasy:<version>")
+    implementation("com.harshshah6.shizukueasy:core:0.1.0")
 }
 ```
 
-> **Note:** ShizukuEasy transitively includes the official Shizuku API and provider dependencies. You do not need to add them separately.
+> ShizukuEasy transitively includes the official Shizuku API and provider dependencies. The `ShizukuProvider` manifest entry is automatically merged — no manual XML needed.
 
-### Manifest Setup
-
-Add the Shizuku provider to your app's `AndroidManifest.xml` inside the `<application>` tag:
-
-```xml
-<provider
-    android:name="rikka.shizuku.ShizukuProvider"
-    android:authorities="${applicationId}.shizuku"
-    android:multiprocess="false"
-    android:enabled="true"
-    android:exported="true"
-    android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
-```
-
-This is required by the Shizuku API and cannot be shipped inside the library because the authority must be unique per application.
-
-## API Reference
-
-### Initialization & Lifecycle
-
-| Method | Description |
-|---|---|
-| `ShizukuEasy.init(context)` | Initializes ShizukuEasy. Call once in `onCreate()`. |
-| `ShizukuEasy.destroy()` | Tears down listeners. Call in `onDestroy()`. |
-
-### State Properties
-
-| Property | Type | Description |
-|---|---|---|
-| `state` | `ShizukuState` | Current detailed state. |
-| `available` | `Boolean` | Shizuku binder is alive and reachable. |
-| `permissionGranted` | `Boolean` | Shizuku permission is granted. |
-| `ready` | `Boolean` | `available && permissionGranted` — safe to use Shizuku. |
-| `backend` | `ShizukuBackend` | `ADB`, `ROOT`, or `UNKNOWN`. |
-| `isRoot` | `Boolean` | Server running as root (UID 0). |
-| `isShell` | `Boolean` | Server running as shell/ADB (UID 2000). |
-| `serverVersion` | `Int` | Shizuku server version, or -1 if unavailable. |
-
-### Permission
-
-| Method | Description |
-|---|---|
-| `requestPermission(callback)` | Requests permission with a result callback. |
-| `requestPermission()` | Requests permission without a callback. |
-| `permissionDeniedForever` | `true` if the user permanently denied permission. |
-
-### State Observation
+## Quick Start
 
 ```kotlin
-ShizukuEasy.addStateChangeListener { state ->
-    when (state) {
-        ShizukuState.READY -> { /* Connected and permitted */ }
-        ShizukuState.UNAUTHORIZED -> { /* Connected but needs permission */ }
-        ShizukuState.UNAVAILABLE -> { /* Shizuku not running */ }
-        ShizukuState.DEAD -> { /* Binder died, waiting for reconnection */ }
-        ShizukuState.NOT_INITIALIZED -> { /* init() not called or destroy() was called */ }
+// Initialize once
+ShizukuEasy.init(this)
+
+// Check readiness
+if (ShizukuEasy.isReady) {
+    val packages = ShizukuEasy.packages.getInstalled()
+}
+
+// Or react to readiness
+ShizukuEasy.onReady {
+    val packages = ShizukuEasy.packages.getInstalled()
+}
+```
+
+That's it. No binder listeners, no permission codes, no `SystemServiceHelper`.
+
+## Permission Handling
+
+```kotlin
+// Request permission with a callback
+ShizukuEasy.requestPermission { granted ->
+    if (granted) {
+        // Ready to use
     }
 }
+
+// Or without a callback — observe via status listener
+ShizukuEasy.requestPermission()
 ```
 
-### System Services
+ShizukuEasy internally manages request codes, listener registration/removal, duplicate requests, and lifecycle.
 
-Access Android system services with elevated privileges:
+### Observing Status Changes
 
 ```kotlin
-val pm = ShizukuEasy.getSystemService("package") { binder ->
-    IPackageManager.Stub.asInterface(binder)
+ShizukuEasy.addStatusListener { status ->
+    // status.connection — ConnectionState (CONNECTED, DISCONNECTED, DEAD, ...)
+    // status.permission — PermissionState (GRANTED, DENIED, DENIED_FOREVER, ...)
+    // status.backend    — ShizukuBackend  (ADB, ROOT, UNKNOWN)
+    // status.isReady    — Boolean (connected + permitted)
 }
 ```
 
-> System service access requires hidden API interfaces (AIDL stubs). This is the same requirement as using the raw Shizuku API.
+## High-Level APIs
 
-## States
+ShizukuEasy provides convenient capability APIs for common Shizuku use cases:
 
+### Packages
+
+```kotlin
+// Check if a package is installed
+ShizukuEasy.packages.isInstalled("com.example.app")
+
+// List all installed packages
+ShizukuEasy.packages.getInstalled()
+
+// Enable/disable a package
+ShizukuEasy.packages.enable("com.example.app")
+ShizukuEasy.packages.disable("com.example.app")
+
+// Clear app data
+ShizukuEasy.packages.clearData("com.example.app")
 ```
-NOT_INITIALIZED ──► init() ──► UNAVAILABLE (Shizuku not running)
-                               UNAUTHORIZED (running, no permission)
-                               READY (running + permitted)
 
-READY / UNAUTHORIZED ──► binder dies ──► DEAD ──► binder reconnects ──► READY / UNAUTHORIZED
+### Activities
 
-destroy() ──► NOT_INITIALIZED
+```kotlin
+// Force-stop an application
+ShizukuEasy.activities.forceStop("com.example.app")
 ```
 
-## Backend Detection
+### Users
 
-ShizukuEasy detects whether the Shizuku server is running via **ADB** (wireless debugging / USB) or **root** (Magisk/Sui):
+```kotlin
+// Get current user ID
+ShizukuEasy.users.getCurrentUserId()
+```
+
+### Power (requires root)
+
+```kotlin
+ShizukuEasy.power.reboot()
+ShizukuEasy.power.shutdown()
+```
+
+### Shell
+
+```kotlin
+ShizukuEasy.shell.exec("pm list packages").onSuccess { output ->
+    println(output.stdout)
+    println("Exit code: ${output.exitCode}")
+}
+```
+
+### Result Handling
+
+All capability APIs return `ShizukuResult<T>` instead of throwing exceptions:
+
+```kotlin
+when (val result = ShizukuEasy.packages.getInstalled()) {
+    is ShizukuResult.Success -> handlePackages(result.value)
+    is ShizukuResult.Failure -> when (result.error) {
+        is ShizukuError.Unavailable -> showShizukuRequired()
+        is ShizukuError.PermissionDenied -> requestPermission()
+        is ShizukuError.InsufficientPrivilege -> showRootRequired()
+        else -> showError(result.error.message)
+    }
+}
+
+// Or use convenience methods
+ShizukuEasy.packages.getInstalled()
+    .onSuccess { packages -> /* ... */ }
+    .onFailure { error -> /* ... */ }
+
+// Or get the value directly
+val packages = ShizukuEasy.packages.getInstalled().getOrNull()
+val count = ShizukuEasy.packages.getInstalled().getOrElse { emptyList() }.size
+```
+
+## Advanced API
+
+For experienced developers who need raw access to Shizuku functionality:
+
+```kotlin
+// Raw system service access (requires AIDL stubs)
+val pm = ShizukuEasy.advanced.getSystemService("package") { binder ->
+    IPackageManager.Stub.asInterface(binder)
+}
+
+// Raw binder
+val binder = ShizukuEasy.advanced.getBinder()
+
+// UserService
+ShizukuEasy.advanced.userService.bind(
+    serviceClass = MyPrivilegedService::class.java,
+    converter = { IMyService.Stub.asInterface(it) }
+) { result ->
+    result.onSuccess { service -> service.doWork() }
+}
+
+// Direct Shizuku queries
+val uid = ShizukuEasy.advanced.getServerUid()
+val version = ShizukuEasy.advanced.getServerVersion()
+```
+
+## UserService
+
+ShizukuEasy provides a clean abstraction over Shizuku's UserService for running code with elevated privileges:
+
+```kotlin
+// Bind a UserService (hides UserServiceArgs, ServiceConnection, etc.)
+ShizukuEasy.advanced.userService.bind(
+    serviceClass = MyService::class.java,
+    converter = { IMyService.Stub.asInterface(it) }
+) { result ->
+    result.onSuccess { service ->
+        // service runs with shell/root identity
+    }
+}
+
+// Cleanup
+ShizukuEasy.advanced.userService.unbind(MyService::class.java)
+```
+
+The raw `Shizuku.bindUserService()` / `Shizuku.unbindUserService()` APIs are also available through `ShizukuEasy.advanced` for full control.
+
+## Backend Limitations
+
+ShizukuEasy detects whether the Shizuku server is running via **ADB** (shell, UID 2000) or **root** (UID 0):
 
 ```kotlin
 when (ShizukuEasy.backend) {
-    ShizukuBackend.ADB -> { /* Shell-level access (UID 2000) */ }
-    ShizukuBackend.ROOT -> { /* Root-level access (UID 0) */ }
+    ShizukuBackend.ADB -> { /* Shell-level access */ }
+    ShizukuBackend.ROOT -> { /* Full system access */ }
     ShizukuBackend.UNKNOWN -> { /* Not connected */ }
 }
-
-// Convenience:
-if (ShizukuEasy.isRoot) { /* ... */ }
-if (ShizukuEasy.isShell) { /* ... */ }
 ```
+
+Some operations (e.g., `power.reboot()`) require root and will return `ShizukuError.InsufficientPrivilege` when running via ADB.
 
 ## Requirements
 
 - **Android 7.0+** (API 24)
-- User must have the [Shizuku](https://shizuku.rikka.app/download/) app installed and running
-- On non-rooted devices: Shizuku must be started via ADB or wireless debugging
-- On rooted devices: [Sui](https://github.com/RikkaApps/Sui) (Magisk module) can start Shizuku automatically
+- [Shizuku](https://shizuku.rikka.app/download/) app installed and running
+- Non-rooted devices: Shizuku started via ADB or wireless debugging
+- Rooted devices: [Sui](https://github.com/RikkaApps/Sui) (Magisk module) starts Shizuku automatically
+
+## Java Usage
+
+All public APIs are Java-compatible:
+
+```java
+// Initialize
+ShizukuEasy.init(this);
+
+// Check readiness
+if (ShizukuEasy.isReady()) {
+    // Use capabilities
+}
+
+// Request permission
+ShizukuEasy.requestPermission(granted -> {
+    if (granted) { /* ... */ }
+});
+
+// Status observation
+ShizukuEasy.addStatusListener(status -> {
+    if (status.isReady()) { /* ... */ }
+});
+```
+
+## Maven Central
+
+ShizukuEasy is published to Maven Central:
+
+```kotlin
+// Gradle Kotlin DSL
+implementation("com.harshshah6.shizukueasy:core:0.1.0")
+```
+
+```groovy
+// Gradle Groovy DSL
+implementation 'com.harshshah6.shizukueasy:core:0.1.0'
+```
 
 ## Relationship to the Shizuku API
 
-ShizukuEasy is built on top of the official [Shizuku API](https://github.com/RikkaApps/Shizuku-API) (`dev.rikka.shizuku:api`). It does not replace, fork, or modify the Shizuku API — it wraps it with a simpler interface.
+ShizukuEasy is built on top of the official [Shizuku API](https://github.com/RikkaApps/Shizuku-API) (`dev.rikka.shizuku:api`). It does **not** replace, fork, or modify the Shizuku API — it wraps it with a simpler interface.
 
-The official Shizuku API is included as a transitive dependency. If you need to access lower-level Shizuku functionality (e.g., `Shizuku.newProcess()`, `Shizuku.peekUserService()`), you can use the official API directly alongside ShizukuEasy.
-
-## Limitations
-
-- **Provider declaration**: Must be in your app's manifest (cannot be shipped in the library).
-- **Hidden APIs**: Accessing system services via `getSystemService()` requires AIDL stubs for hidden Android APIs. ShizukuEasy provides the plumbing but not the stubs themselves.
-- **ADB backend**: When running via ADB, Shizuku has shell-level permissions (UID 2000). Some operations require root.
-- **Shizuku availability**: On non-rooted devices, Shizuku must be manually restarted after every reboot (or started via wireless debugging on Android 11+).
+ShizukuEasy does **not** bypass Shizuku's security or permission model. The user must still have Shizuku installed and grant your app permission.
 
 ## Project Structure
 
 ```
 ShizukuEasy/
-├── app/              → Demo application
-├── shizukueasy/      → Library module
-│   └── src/main/java/com/harshshah6/shizukueasy/
-│       ├── ShizukuEasy.kt              → Public facade
-│       ├── ShizukuState.kt             → State enum
-│       ├── ShizukuBackend.kt           → Backend enum
-│       ├── ShizukuServiceFactory.kt    → System service access
-│       ├── OnStateChangeListener.kt    → State callback
-│       ├── OnPermissionResultListener.kt → Permission callback
-│       └── internal/                   → Implementation details
-├── README.md
-└── LICENSE
+├── app/                    → Demo application
+└── shizukueasy/            → Library module (published as :core)
+    └── src/main/java/com/harshshah6/shizukueasy/
+        ├── ShizukuEasy.kt              → Public facade
+        ├── ShizukuStatus.kt            → Composite status
+        ├── ConnectionState.kt          → Connection enum
+        ├── PermissionState.kt          → Permission enum
+        ├── ShizukuBackend.kt           → Backend enum
+        ├── result/                     → Result/error types
+        ├── capabilities/               → High-level APIs
+        ├── advanced/                   → Advanced escape hatch
+        ├── userservice/                → UserService abstraction
+        └── internal/                   → Implementation details
 ```
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Write tests for new functionality
+4. Submit a pull request
 
 ## License
 

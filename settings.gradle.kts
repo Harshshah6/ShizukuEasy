@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "ShizukuEasy"
 include(":app")
-include(":shizukueasy")
+include(":core")
+project(":core").projectDir = file("shizukueasy")

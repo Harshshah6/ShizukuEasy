@@ -18,10 +18,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
-            android:text="@string/title_shizuku_state"
+            android:text="@string/title_shizuku_status"
             android:textAppearance="?attr/textAppearanceHeadlineMedium" />
 
-        <!-- State Card -->
+        <!-- Status Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -33,7 +33,7 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- State -->
+                <!-- Connection State -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -44,41 +44,19 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/label_state"
-                        android:textAppearance="?attr/textAppearanceBodyLarge" />
-
-                    <TextView
-                        android:id="@+id/text_state"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?attr/textAppearanceBodyLarge"
-                        android:textStyle="bold"
-                        tools:text="READY" />
-                </LinearLayout>
-
-                <!-- Available -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="8dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_available"
+                        android:text="@string/label_connection"
                         android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                     <TextView
-                        android:id="@+id/text_available"
+                        android:id="@+id/text_connection_state"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
-                        tools:text="Yes" />
+                        android:textStyle="bold"
+                        tools:text="CONNECTED" />
                 </LinearLayout>
 
-                <!-- Permission -->
+                <!-- Permission State -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -93,11 +71,12 @@
                         android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                     <TextView
-                        android:id="@+id/text_permission"
+                        android:id="@+id/text_permission_state"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
-                        tools:text="Granted" />
+                        android:textStyle="bold"
+                        tools:text="GRANTED" />
                 </LinearLayout>
 
                 <!-- Backend -->
@@ -178,12 +157,20 @@
             android:text="@string/btn_request_permission" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_run_test"
+            android:id="@+id/btn_list_packages"
             style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/btn_list_packages" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_force_stop"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:text="@string/btn_run_test" />
+            android:text="@string/btn_force_stop" />
 
         <!-- Result Card -->
         <com.google.android.material.card.MaterialCardView

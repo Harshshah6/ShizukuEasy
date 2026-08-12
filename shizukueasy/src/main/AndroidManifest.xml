@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Library manifest. ShizukuProvider must be declared in the consuming app's manifest. -->
+
+    <!--
+        ShizukuProvider is declared here so it is automatically merged into
+        consuming apps via Android's manifest merger. The ${applicationId}
+        placeholder is resolved to the consuming app's applicationId.
+    -->
+    <application>
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+    </application>
+
 </manifest>

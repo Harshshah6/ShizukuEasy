@@ -3,26 +3,17 @@ package com.harshshah6.shizukueasy
 /**
  * Callback for Shizuku state changes.
  *
- * This is a functional interface, usable as a lambda in both Kotlin and Java.
- *
- * **Kotlin:**
- * ```kotlin
- * ShizukuEasy.addStateChangeListener { state ->
- *     Log.d("Shizuku", "State: $state")
- * }
- * ```
- *
- * **Java:**
- * ```java
- * ShizukuEasy.addStateChangeListener(state -> {
- *     Log.d("Shizuku", "State: " + state);
- * });
- * ```
+ * @deprecated Use [OnStatusChangeListener] instead.
  */
-fun interface OnStateChangeListener {
+@Deprecated(
+    message = "Use OnStatusChangeListener instead.",
+    replaceWith = ReplaceWith("OnStatusChangeListener")
+)
+public fun interface OnStateChangeListener {
     /**
      * Called when the Shizuku state changes.
      * @param newState The new [ShizukuState].
      */
-    fun onStateChanged(newState: ShizukuState)
+    @Suppress("DEPRECATION")
+    public fun onStateChanged(newState: ShizukuState)
 }

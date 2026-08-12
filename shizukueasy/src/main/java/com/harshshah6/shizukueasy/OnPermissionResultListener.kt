@@ -19,10 +19,10 @@ package com.harshshah6.shizukueasy
  * });
  * ```
  */
-fun interface OnPermissionResultListener {
+public fun interface OnPermissionResultListener {
     /**
      * Called with the permission request result.
      * @param granted `true` if the user granted Shizuku permission.
      */
-    fun onPermissionResult(granted: Boolean)
+    public fun onPermissionResult(granted: Boolean)
 }

@@ -3,13 +3,14 @@ package com.harshshah6.shizukueasy
 /**
  * Represents the current state of the Shizuku connection and permission.
  *
- * The state progresses through a lifecycle:
- * [NOT_INITIALIZED] → [UNAVAILABLE] or [UNAUTHORIZED] or [READY]
- *
- * If the binder dies, the state transitions to [DEAD] and may return to
- * [READY] or [UNAUTHORIZED] when the binder reconnects.
+ * @deprecated Use [ShizukuStatus] instead, which separates connection, permission,
+ * and backend state. This enum will be removed in a future release.
  */
-enum class ShizukuState {
+@Deprecated(
+    message = "Use ShizukuStatus instead.",
+    replaceWith = ReplaceWith("ShizukuStatus")
+)
+public enum class ShizukuState {
     /** [ShizukuEasy.init] has not been called yet. */
     NOT_INITIALIZED,
 

@@ -10,6 +10,10 @@ activityKtx = "1.13.0"
 constraintlayout = "2.2.2"
 shizuku = "13.1.5"
 annotation = "1.9.1"
+mavenPublish = "0.30.0"
+mockk = "1.13.16"
+robolectric = "4.14.1"
+truth = "1.4.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -23,8 +27,11 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
 shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
 shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }

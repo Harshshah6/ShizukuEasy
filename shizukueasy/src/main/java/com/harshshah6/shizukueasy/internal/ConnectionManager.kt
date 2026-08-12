@@ -1,5 +1,6 @@
 package com.harshshah6.shizukueasy.internal
 
+import com.harshshah6.shizukueasy.ConnectionState
 import rikka.shizuku.Shizuku
 
 /**
@@ -9,15 +10,14 @@ import rikka.shizuku.Shizuku
  * the provided callbacks when state transitions occur.
  */
 internal class ConnectionManager(
-    private val onBinderReceived: () -> Unit,
-    private val onBinderDead: () -> Unit
+    private val onConnectionStateChanged: (ConnectionState) -> Unit
 ) {
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
-        onBinderReceived()
+        onConnectionStateChanged(ConnectionState.CONNECTED)
     }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
-        onBinderDead()
+        onConnectionStateChanged(ConnectionState.DEAD)
     }
 
     /** Whether the binder is currently alive. */
@@ -26,6 +26,13 @@ internal class ConnectionManager(
             Shizuku.pingBinder()
         } catch (_: Exception) {
             false
+        }
+
+    /** The current connection state. */
+    val connectionState: ConnectionState
+        get() = when {
+            isBinderAlive -> ConnectionState.CONNECTED
+            else -> ConnectionState.DISCONNECTED
         }
 
     /**

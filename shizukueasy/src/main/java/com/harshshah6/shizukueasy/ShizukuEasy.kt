@@ -3,138 +3,113 @@ package com.harshshah6.shizukueasy
 import android.content.Context
 import android.os.IBinder
 import android.util.Log
+import com.harshshah6.shizukueasy.advanced.AdvancedShizukuApi
+import com.harshshah6.shizukueasy.capabilities.ActivityCapability
+import com.harshshah6.shizukueasy.capabilities.PackageCapability
+import com.harshshah6.shizukueasy.capabilities.PowerCapability
+import com.harshshah6.shizukueasy.capabilities.ShellCapability
+import com.harshshah6.shizukueasy.capabilities.UserCapability
 import com.harshshah6.shizukueasy.internal.ConnectionManager
 import com.harshshah6.shizukueasy.internal.PermissionManager
 import rikka.shizuku.Shizuku
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * High-level, developer-friendly wrapper around the Shizuku API.
+ * Shizuku without the boilerplate.
  *
- * ShizukuEasy removes the boilerplate of Shizuku setup by managing binder
- * connections, permission handling, and state tracking internally.
+ * ShizukuEasy manages binder connections, permission handling, and state tracking
+ * so you can focus on using Shizuku's capabilities.
  *
- * ## Quick Start (Kotlin)
+ * ## Quick Start
  * ```kotlin
- * // In your Activity or Application
+ * // Initialize once (Application.onCreate or Activity.onCreate)
  * ShizukuEasy.init(this)
  *
- * if (ShizukuEasy.ready) {
- *     // Shizuku is connected and permitted — use it
+ * // Check readiness
+ * if (ShizukuEasy.isReady) {
+ *     val packages = ShizukuEasy.packages.getInstalled()
  * }
  *
- * // When done
- * ShizukuEasy.destroy()
- * ```
- *
- * ## Quick Start (Java)
- * ```java
- * ShizukuEasy.init(this);
- *
- * if (ShizukuEasy.isReady()) {
- *     // Shizuku is connected and permitted
+ * // Or react to readiness
+ * ShizukuEasy.onReady {
+ *     val packages = ShizukuEasy.packages.getInstalled()
  * }
- *
- * ShizukuEasy.destroy();
  * ```
  *
- * ## Prerequisites
- * Your app must include the Shizuku provider in its `AndroidManifest.xml`:
- * ```xml
- * <provider
- *     android:name="rikka.shizuku.ShizukuProvider"
- *     android:authorities="${applicationId}.shizuku"
- *     android:multiprocess="false"
- *     android:enabled="true"
- *     android:exported="true"
- *     android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
- * ```
+ * ## API Layers
+ * - **Simple**: [isReady], [isAvailable], [isAuthorized], [requestPermission], [onReady]
+ * - **Capabilities**: [packages], [users], [activities], [power], [shell]
+ * - **Advanced**: [advanced] — raw binder access, system services, UserService
  *
- * @see ShizukuState
+ * @see ShizukuStatus
  * @see ShizukuBackend
- * @see ShizukuServiceFactory
  */
-object ShizukuEasy {
+public object ShizukuEasy {
 
     private const val TAG = "ShizukuEasy"
 
+    @Volatile
     private var initialized = false
-    private val stateListeners = CopyOnWriteArrayList<OnStateChangeListener>()
 
     @Volatile
-    private var currentState: ShizukuState = ShizukuState.NOT_INITIALIZED
+    private var currentConnectionState: ConnectionState = ConnectionState.NOT_INITIALIZED
+
+    @Volatile
+    private var currentPermissionState: PermissionState = PermissionState.UNKNOWN
 
     @Volatile
     private var currentBackend: ShizukuBackend = ShizukuBackend.UNKNOWN
 
+    private val statusListeners = CopyOnWriteArrayList<OnStatusChangeListener>()
+    private val readyCallbacks = CopyOnWriteArrayList<() -> Unit>()
+
     private lateinit var connectionManager: ConnectionManager
     private lateinit var permissionManager: PermissionManager
 
-    // ── Public properties ───────────────────────────────────────────────
+    // ── Simple API ──────────────────────────────────────────────────────
 
     /**
-     * The current Shizuku state.
+     * The current composite status.
      *
-     * Observe changes with [addStateChangeListener].
+     * Combines connection, permission, and backend state.
      */
     @JvmStatic
-    val state: ShizukuState
-        get() = currentState
+    public val status: ShizukuStatus
+        get() = ShizukuStatus(
+            connection = currentConnectionState,
+            permission = currentPermissionState,
+            backend = currentBackend
+        )
 
-    /**
-     * `true` if the Shizuku binder is alive and reachable.
-     */
+    /** `true` if the Shizuku binder is alive and reachable. */
     @JvmStatic
-    val available: Boolean
-        get() = initialized && connectionManager.isBinderAlive
+    public val isAvailable: Boolean
+        get() = currentConnectionState == ConnectionState.CONNECTED
 
-    /**
-     * `true` if Shizuku permission has been granted.
-     */
+    /** `true` if Shizuku permission has been granted. */
     @JvmStatic
-    val permissionGranted: Boolean
-        get() = initialized && permissionManager.isGranted
+    public val isAuthorized: Boolean
+        get() = currentPermissionState == PermissionState.GRANTED
 
     /**
-     * `true` if Shizuku is [available] and [permissionGranted].
+     * `true` if Shizuku is connected and permission is granted.
      *
-     * When this is `true`, you can safely call Shizuku APIs and
-     * [ShizukuServiceFactory.getSystemService].
+     * When this is `true`, you can safely use capability APIs and [advanced].
      */
     @JvmStatic
-    val ready: Boolean
-        get() = available && permissionGranted
+    public val isReady: Boolean
+        get() = isAvailable && isAuthorized
 
-    /**
-     * The detected backend type of the running Shizuku server.
-     *
-     * Only meaningful when [available] is `true`.
-     */
+    /** The detected backend type of the running Shizuku server. */
     @JvmStatic
-    val backend: ShizukuBackend
+    public val backend: ShizukuBackend
         get() = currentBackend
 
-    /**
-     * `true` if the Shizuku server is running as root (UID 0).
-     */
+    /** The Shizuku server version, or -1 if unavailable. */
     @JvmStatic
-    val isRoot: Boolean
-        get() = currentBackend == ShizukuBackend.ROOT
-
-    /**
-     * `true` if the Shizuku server is running as shell/ADB (UID 2000).
-     */
-    @JvmStatic
-    val isShell: Boolean
-        get() = currentBackend == ShizukuBackend.ADB
-
-    /**
-     * The version of the connected Shizuku server, or -1 if unavailable.
-     */
-    @JvmStatic
-    val serverVersion: Int
+    public val serverVersion: Int
         get() = try {
-            if (available) Shizuku.getVersion() else -1
+            if (isAvailable) Shizuku.getVersion() else -1
         } catch (_: Exception) {
             -1
         }
@@ -144,34 +119,27 @@ object ShizukuEasy {
     /**
      * Initializes ShizukuEasy.
      *
-     * Call this once from your `Activity.onCreate()` or `Application.onCreate()`.
+     * Call this once from `Application.onCreate()` or `Activity.onCreate()`.
      * Subsequent calls are safe and will be ignored.
      *
-     * This registers binder and permission listeners. The [state] will update
+     * This registers binder and permission listeners. Status updates
      * automatically as Shizuku connects, disconnects, or permission changes.
      *
      * @param context Any context (application context is extracted internally).
      */
     @JvmStatic
-    fun init(context: Context) {
+    public fun init(context: Context) {
         if (initialized) {
             Log.d(TAG, "Already initialized, ignoring duplicate init() call.")
             return
         }
 
-        // We only need the context to ensure we're initialized; Shizuku uses
-        // its own ContentProvider for the actual connection.
+        // Ensure we hold the application context only.
         @Suppress("UNUSED_VARIABLE")
         val appContext = context.applicationContext
 
-        connectionManager = ConnectionManager(
-            onBinderReceived = ::onBinderReceived,
-            onBinderDead = ::onBinderDead
-        )
-
-        permissionManager = PermissionManager(
-            onPermissionChanged = ::onPermissionChanged
-        )
+        connectionManager = ConnectionManager(::onConnectionStateChanged)
+        permissionManager = PermissionManager(::onPermissionStateChanged)
 
         initialized = true
         connectionManager.start()
@@ -183,20 +151,22 @@ object ShizukuEasy {
     /**
      * Tears down ShizukuEasy and releases all listeners.
      *
-     * Call this from `Activity.onDestroy()` or when you no longer need Shizuku.
-     * After calling this, [state] returns to [ShizukuState.NOT_INITIALIZED].
+     * After calling this, [status] resets to [ShizukuStatus.INITIAL].
+     * For most apps, calling this is unnecessary — listeners are lightweight.
      */
     @JvmStatic
-    fun destroy() {
+    public fun destroy() {
         if (!initialized) return
 
         connectionManager.stop()
         permissionManager.stop()
-        stateListeners.clear()
+        statusListeners.clear()
+        readyCallbacks.clear()
 
         initialized = false
+        currentConnectionState = ConnectionState.NOT_INITIALIZED
+        currentPermissionState = PermissionState.UNKNOWN
         currentBackend = ShizukuBackend.UNKNOWN
-        updateState(ShizukuState.NOT_INITIALIZED)
 
         Log.d(TAG, "Destroyed.")
     }
@@ -209,102 +179,154 @@ object ShizukuEasy {
      * If permission is already granted, the [callback] fires immediately
      * with `true`. Otherwise the Shizuku permission dialog is shown.
      *
-     * @param callback Receives the permission result. May be `null` if you
-     *   only want to trigger the dialog and observe via [addStateChangeListener].
+     * @param callback Receives the permission result. Pass `null` to trigger
+     *   the dialog and observe via [addStatusListener].
      */
     @JvmStatic
-    fun requestPermission(callback: OnPermissionResultListener?) {
+    public fun requestPermission(callback: OnPermissionResultListener?) {
         check(initialized) { "Call ShizukuEasy.init() before requesting permission." }
         permissionManager.requestPermission(callback)
     }
 
-    /**
-     * Requests Shizuku permission without a callback.
-     *
-     * Observe the result through [addStateChangeListener] or by checking
-     * [permissionGranted] after the dialog is dismissed.
-     */
+    /** Requests Shizuku permission without a callback. */
     @JvmStatic
-    fun requestPermission() {
+    public fun requestPermission() {
         requestPermission(null)
     }
 
+    // ── Ready callback ──────────────────────────────────────────────────
+
     /**
-     * Whether the user has permanently denied Shizuku permission.
+     * Registers a callback that fires when Shizuku becomes ready.
      *
-     * If `true`, the user must manually grant permission from the Shizuku app.
+     * If already ready, the callback fires immediately. Otherwise it fires
+     * the first time [isReady] becomes `true`. The callback is automatically
+     * removed after it fires.
+     *
+     * @param callback Called when Shizuku is ready to use.
      */
     @JvmStatic
-    val permissionDeniedForever: Boolean
-        get() = initialized && permissionManager.shouldShowRationale
+    public fun onReady(callback: Runnable) {
+        if (isReady) {
+            callback.run()
+            return
+        }
+        readyCallbacks.add { callback.run() }
+    }
 
-    // ── State observation ───────────────────────────────────────────────
+    // ── Status observation ──────────────────────────────────────────────
 
     /**
-     * Adds a listener that is notified when [state] changes.
-     *
-     * The listener is called on the thread where the state change occurs
-     * (typically the main thread).
+     * Adds a listener that is notified when [status] changes.
      *
      * @param listener The listener to add.
      */
     @JvmStatic
-    fun addStateChangeListener(listener: OnStateChangeListener) {
-        stateListeners.add(listener)
+    public fun addStatusListener(listener: OnStatusChangeListener) {
+        statusListeners.add(listener)
     }
 
     /**
-     * Removes a previously added state change listener.
+     * Removes a previously added status listener.
      *
      * @param listener The listener to remove.
      */
     @JvmStatic
-    fun removeStateChangeListener(listener: OnStateChangeListener) {
-        stateListeners.remove(listener)
+    public fun removeStatusListener(listener: OnStatusChangeListener) {
+        statusListeners.remove(listener)
     }
 
-    // ── System services ─────────────────────────────────────────────────
+    // ── High-level capabilities ─────────────────────────────────────────
+
+    /** Package management operations (install checks, enable/disable, etc.). */
+    @JvmStatic
+    public val packages: PackageCapability = PackageCapability { status }
+
+    /** User management operations. */
+    @JvmStatic
+    public val users: UserCapability = UserCapability { status }
+
+    /** Activity management operations (force stop, etc.). */
+    @JvmStatic
+    public val activities: ActivityCapability = ActivityCapability { status }
+
+    /** Power management operations (reboot, shutdown). */
+    @JvmStatic
+    public val power: PowerCapability = PowerCapability { status }
+
+    /** Shell command execution. */
+    @JvmStatic
+    public val shell: ShellCapability = ShellCapability { status }
+
+    // ── Advanced API ────────────────────────────────────────────────────
 
     /**
-     * Obtains a system service interface through Shizuku.
+     * Advanced Shizuku API for experienced developers.
      *
-     * Convenience delegate to [ShizukuServiceFactory.getSystemService].
-     *
-     * @param T The AIDL interface type.
-     * @param serviceName The system service name (e.g., "package", "activity").
-     * @param converter Converts the wrapped [IBinder] to the desired interface.
-     * @return The service interface proxy.
-     * @throws IllegalStateException if [ready] is false.
+     * Provides raw binder access, system service resolution, and UserService
+     * management. Most developers should use [packages], [shell], etc. instead.
      */
     @JvmStatic
-    fun <T> getSystemService(serviceName: String, converter: (IBinder) -> T): T {
-        return ShizukuServiceFactory.getSystemService(serviceName, converter)
+    public val advanced: AdvancedShizukuApi = AdvancedShizukuApi { status }
+
+    // ── Backward compatibility (deprecated) ─────────────────────────────
+
+    /** @deprecated Use [isAvailable] instead. */
+    @Deprecated("Use isAvailable instead.", replaceWith = ReplaceWith("isAvailable"))
+    @JvmStatic
+    public val available: Boolean get() = isAvailable
+
+    /** @deprecated Use [isReady] instead. */
+    @Deprecated("Use isReady instead.", replaceWith = ReplaceWith("isReady"))
+    @JvmStatic
+    public val ready: Boolean get() = isReady
+
+    /** @deprecated Use [isAuthorized] instead. */
+    @Deprecated("Use isAuthorized instead.", replaceWith = ReplaceWith("isAuthorized"))
+    @JvmStatic
+    public val permissionGranted: Boolean get() = isAuthorized
+
+    /** @deprecated Use [advanced.getSystemService] instead. */
+    @Deprecated(
+        "Use ShizukuEasy.advanced.getSystemService() instead.",
+        replaceWith = ReplaceWith("advanced.getSystemService(serviceName, converter)")
+    )
+    @JvmStatic
+    public fun <T> getSystemService(serviceName: String, converter: (IBinder) -> T): T {
+        return advanced.getSystemService(serviceName, converter)
     }
 
     // ── Internal callbacks ──────────────────────────────────────────────
 
-    private fun onBinderReceived() {
-        Log.d(TAG, "Binder received.")
-        currentBackend = detectBackend()
+    private fun onConnectionStateChanged(newState: ConnectionState) {
+        Log.d(TAG, "Connection state: $newState")
+        currentConnectionState = newState
 
-        if (permissionManager.isGranted) {
-            updateState(ShizukuState.READY)
-        } else {
-            updateState(ShizukuState.UNAUTHORIZED)
+        when (newState) {
+            ConnectionState.CONNECTED -> {
+                currentBackend = detectBackend()
+                // Re-evaluate permission now that we're connected
+                currentPermissionState = permissionManager.permissionState
+            }
+            ConnectionState.DEAD -> {
+                currentBackend = ShizukuBackend.UNKNOWN
+            }
+            ConnectionState.DISCONNECTED -> {
+                currentBackend = ShizukuBackend.UNKNOWN
+                currentPermissionState = PermissionState.UNKNOWN
+            }
+            ConnectionState.NOT_INITIALIZED -> {
+                // Should not happen via callback
+            }
         }
+
+        notifyStatusChanged()
     }
 
-    private fun onBinderDead() {
-        Log.d(TAG, "Binder dead.")
-        currentBackend = ShizukuBackend.UNKNOWN
-        updateState(ShizukuState.DEAD)
-    }
-
-    private fun onPermissionChanged(granted: Boolean) {
-        Log.d(TAG, "Permission changed: granted=$granted")
-        if (connectionManager.isBinderAlive) {
-            updateState(if (granted) ShizukuState.READY else ShizukuState.UNAUTHORIZED)
-        }
+    private fun onPermissionStateChanged(newState: PermissionState) {
+        Log.d(TAG, "Permission state: $newState")
+        currentPermissionState = newState
+        notifyStatusChanged()
     }
 
     private fun detectBackend(): ShizukuBackend {
@@ -315,9 +337,15 @@ object ShizukuEasy {
         }
     }
 
-    private fun updateState(newState: ShizukuState) {
-        if (currentState == newState) return
-        currentState = newState
-        stateListeners.forEach { it.onStateChanged(newState) }
+    private fun notifyStatusChanged() {
+        val currentStatus = status
+        statusListeners.forEach { it.onStatusChanged(currentStatus) }
+
+        // Fire and remove ready callbacks
+        if (currentStatus.isReady && readyCallbacks.isNotEmpty()) {
+            val callbacks = readyCallbacks.toList()
+            readyCallbacks.clear()
+            callbacks.forEach { it.invoke() }
+        }
     }
 }
