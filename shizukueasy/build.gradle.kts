@@ -66,7 +66,7 @@ mavenPublishing {
     coordinates(
         groupId = "com.harshbits.shizukueasy",
         artifactId = "core",
-        version = providers.gradleProperty("VERSION_NAME").getOrElse("0.1.0-SNAPSHOT")
+        version = providers.gradleProperty("VERSION_NAME").getOrElse("0.1.0")
     )
 
     pom {
@@ -100,4 +100,14 @@ mavenPublishing {
 
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
+}
+
+plugins.withId("signing") {
+    configure<SigningExtension> {
+        setRequired {
+            providers.gradleProperty("signingInMemoryKey").isPresent ||
+                providers.gradleProperty("signing.keyId").isPresent ||
+                providers.gradleProperty("signing.secretKeyRingFile").isPresent
+        }
+    }
 }

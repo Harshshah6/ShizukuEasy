@@ -3,6 +3,7 @@ name: Publish to Maven Central
 on:
   release:
     types: [ published ]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -49,6 +50,7 @@ jobs:
         run: |
           TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
+          if [ -z "${VERSION}" ]; then VERSION="0.1.0"; fi
           echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Publish to Maven Central

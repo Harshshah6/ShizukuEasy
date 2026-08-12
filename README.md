@@ -14,11 +14,10 @@ Add the Sonatype Central Portal snapshot repository and dependency:
 ```kotlin
 repositories {
     mavenCentral()
-    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
 }
 
 dependencies {
-    implementation("com.harshbits.shizukueasy:core:0.1.0-SNAPSHOT")
+    implementation("com.harshbits.shizukueasy:core:0.1.0")
 }
 ```
 
@@ -240,17 +239,16 @@ ShizukuEasy.addStatusListener(status -> {
 
 ## Maven Central
 
-Development builds are published as `0.1.0-SNAPSHOT` to Sonatype Central Portal's snapshot repository:
+Releases are published to Maven Central:
 
 ```kotlin
 // Gradle Kotlin DSL
 repositories {
     mavenCentral()
-    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
 }
 
 dependencies {
-    implementation("com.harshbits.shizukueasy:core:0.1.0-SNAPSHOT")
+    implementation("com.harshbits.shizukueasy:core:0.1.0")
 }
 ```
 
@@ -258,11 +256,10 @@ dependencies {
 // Gradle Groovy DSL
 repositories {
     mavenCentral()
-    maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
 }
 
 dependencies {
-    implementation 'com.harshbits.shizukueasy:core:0.1.0-SNAPSHOT'
+    implementation 'com.harshbits.shizukueasy:core:0.1.0'
 }
 ```
 
