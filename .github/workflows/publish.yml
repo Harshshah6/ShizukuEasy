@@ -4,6 +4,11 @@ on:
   release:
     types: [ published ]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version override (leave empty to use VERSION_NAME from gradle.properties)'
+        required: false
+        type: string
 
 jobs:
   publish:
@@ -49,8 +54,21 @@ jobs:
         id: version
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          if [ -z "${VERSION}" ]; then VERSION="0.1.0"; fi
+          INPUT_VERSION="${{ inputs.version }}"
+          if [ -n "${TAG}" ]; then
+            VERSION="${TAG#v}"
+          elif [ -n "${INPUT_VERSION}" ]; then
+            VERSION="${INPUT_VERSION#v}"
+          else
+            VERSION=$(grep -E "^VERSION_NAME=" gradle.properties | cut -d'=' -f2 | tr -d ' \r\n')
+          fi
+
+          if [ -z "${VERSION}" ]; then
+            echo "::error::Could not determine version from release tag, input, or gradle.properties"
+            exit 1
+          fi
+
+          echo "Publishing version: ${VERSION}"
           echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Publish to Maven Central

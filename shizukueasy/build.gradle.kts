@@ -60,7 +60,7 @@ mavenPublishing {
     coordinates(
         groupId = "com.harshbits.shizukueasy",
         artifactId = "core",
-        version = providers.gradleProperty("VERSION_NAME").getOrElse("0.1.0")
+        version = providers.gradleProperty("VERSION_NAME").get()
     )
 
     pom {
