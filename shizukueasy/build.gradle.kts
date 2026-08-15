@@ -5,11 +5,7 @@ plugins {
 
 android {
     namespace = "com.harshshah6.shizukueasy"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
@@ -41,8 +37,6 @@ kotlin {
 dependencies {
     api(libs.shizuku.api)
     api(libs.shizuku.provider)
-    implementation(libs.androidx.annotation)
-    implementation(libs.androidx.core.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
